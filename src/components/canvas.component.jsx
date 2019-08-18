@@ -14,6 +14,8 @@ class CanvasComponent extends React.Component {
         this.canvas = {};
         this.animationRef = null;
         this.imageRef = {};
+
+        //text for different button displays
         this.buttons_text = [
             {
                 x: 840,
@@ -83,6 +85,8 @@ class CanvasComponent extends React.Component {
             },
 
         ];
+
+        //background for different displays
         this.buttons = [
             {
               x: 830,
@@ -143,10 +147,14 @@ class CanvasComponent extends React.Component {
         
     }
     componentDidMount() {
-
+        //loaded from a file on server in json format
         GameStore.loadCards();
         
-        this.updateCanvas();
+        //set global reference to canvas elements
+        this.canvas = this.refs.canvas;
+        this.context = this.canvas.getContext('2d');
+
+        //preload image for reference
         this.loadImageRef({
             name : "gray_back.png",
             refName: "gray_back",
@@ -157,7 +165,7 @@ class CanvasComponent extends React.Component {
             y: 150,
             current_x:null,
             current_y:null
-        }, this, function(img_obj, class_obj){
+        }, this, function(img_obj, class_obj){//callback
         });
         this.loadImageRef({
             name : "back_cards-07.png",
@@ -169,20 +177,27 @@ class CanvasComponent extends React.Component {
             y: 0,
             current_x:null,
             current_y:null
-        }, this, function(img_obj, class_obj){
+        }, this, function(img_obj, class_obj){//callback after image loaded
+            //show 5 card image on canvas
             class_obj.addImage(class_obj.context, img_obj, class_obj, function(img_obj, class_obj){
                 class_obj.animationRef = window.requestAnimationFrame(function(timestamp){
+                    //set destination for 5 card image go right
                     var destination_obj = {
                         x: 700,
                         y: img_obj['current_y'],
                         restoreDefault: false
                     }
+                    //move to right
                     class_obj.animate(timestamp, img_obj, class_obj, destination_obj, function(img_obj, class_obj){
+                        
+                        //set destination back to left
                         var destination_obj = {
                             x: 0,
                             y: img_obj['current_y'],
                             restoreDefault: false
                         }
+
+                        //move to left
                         class_obj.animate(timestamp, img_obj, class_obj, destination_obj, function(img_obj, class_obj){
                             class_obj.displayActionElements();
                             
@@ -194,9 +209,36 @@ class CanvasComponent extends React.Component {
 
         });
    
+        //add listeners for all buttons click events
         this.addListeners();
     }
 
+    //while drawing, draw default items over and over
+    restoreDefaultDisplay = () =>{
+        const class_obj = this;
+        var item1 = this.imageRef["back_cards"];
+        this.addImage(this.context, item1, this, function(){
+        } )
+
+        if(GameStore.gameStatus === "hit_me" || GameStore.gameStatus === "game_over"){
+            var player_items = GameStore.player_cards.filter(record =>  record.destination.flipped_back !== true);
+        }else{
+            var player_items = GameStore.player_cards.filter(record => record.image.main_card !== true);
+
+        }
+
+        player_items.map(info =>{
+            var obj  = info.image;
+            obj.x = info.destination.x;
+            obj.y = info.destination.y;
+            class_obj.addImage(class_obj.context, obj, class_obj, function(){
+            } )
+        });
+
+    }
+
+
+    //on a change of state status, rebuild canvas with correct buttons
     displayActionElements(){
         if( GameStore.initializingGame){
             const button = this.buttons.find(obj => obj.id === "deal_button");
@@ -287,7 +329,8 @@ class CanvasComponent extends React.Component {
             this.context.fillText(text2.fill_text, text2.x, text2.y, text2.width );
             
         }
-
+       
+        //always show score
         const button = this.buttons.find(obj => obj.id === "score");
             this.context.beginPath();
             this.context.shadowColor = 'gray';
@@ -304,21 +347,8 @@ class CanvasComponent extends React.Component {
             this.context.fillText(text.fill_text+GameStore.score, text.x, text.y, text.width );
         
     }
-    dealButtonAction(){
-        this.dealCard();
-    }
-    flipCardAction(){
-        this.flipCard();
-    }
-
-    hitMeAction(){
-        this.hitMe();
-    }
-
-    gameOverAction(){
-        this.gameOver();
-    }
-
+    
+    //util to calculate offsets and give real x, y 
     realMouseCoords(event, canvas){
         var totalOffsetX = 0;
         var totalOffsetY = 0;
@@ -338,6 +368,7 @@ class CanvasComponent extends React.Component {
         return {x:canvasX, y:canvasY}
     }
 
+    //determine if a button area was clicked
     isIntersect = (point, item) => {
         var clicked_position =  [[point.x, point.x + 1], [point.y, point.y + 1]];
         var item_position = [[item.x, item.x + item.width], [item.y, item.y + item.height]];
@@ -352,42 +383,17 @@ class CanvasComponent extends React.Component {
 
     }
 
+    //determine if button area was clicked
     comparePositions(p1, p2) {
         var x1 = p1[0] < p2[0] ? p1 : p2;
         var x2 = p1[0] < p2[0] ? p2 : p1;
         return x1[1] > x2[0] || x1[0] === x2[0] ? true : false;
     }
 
-    restoreDefaultDisplay = () =>{
-        const class_obj = this;
-        var item1 = this.imageRef["back_cards"];
-        this.addImage(this.context, item1, this, function(){
-        } )
-
-        if(GameStore.gameStatus === "hit_me" || GameStore.gameStatus === "game_over"){
-            var player_items = GameStore.player_cards.filter(record =>  record.destination.flipped_back !== true);
-        }else{
-            var player_items = GameStore.player_cards.filter(record => record.image.main_card !== true);
-
-        }
-
-        player_items.map(info =>{
-            var obj  = info.image;
-            obj.x = info.destination.x;
-            obj.y = info.destination.y;
-            class_obj.addImage(class_obj.context, obj, class_obj, function(){
-            } )
-        });
-
-        
-
-
-    }
-
+    
     updateScore = (str) =>{
         var item =str.split(".png");
         var c = item[0].substr(0,1);
-        console.log("fff "+c);
         if(Number(c) === 1 || isNaN(Number(c))){
             GameStore.score = GameStore.score + 10;
             console.log(GameStore.score);
@@ -398,6 +404,7 @@ class CanvasComponent extends React.Component {
 
     }
 
+    //load images and keep reference so we don't have to pull it again
     loadImageRef = (obj, class_obj, call_back) =>{
         let img = new Image();
         img.src = obj.url;
@@ -408,6 +415,7 @@ class CanvasComponent extends React.Component {
         }
     }
 
+    //initial drawing of image usually before animation starts
     addImage = (context, img_obj, class_obj, call_back ) =>{
         context.drawImage(img_obj['obj'], img_obj['x'], img_obj['y'], img_obj['width'], img_obj['height']);
         
@@ -416,12 +424,8 @@ class CanvasComponent extends React.Component {
         call_back(img_obj, class_obj);
     }
 
-    updateCanvas() {
-        this.canvas = this.refs.canvas;
-        this.context = this.canvas.getContext('2d');
-       
-    }
-
+   
+    //recursive function that moves image to destination, clearing and drawing canvas
     animate = (timestamp, img_obj, class_obj, destination_obj, call_back) =>{
         var x = null;
         var current_x = (img_obj['current_x'] !== null ? img_obj['current_x'] : img_obj['x']);
@@ -493,7 +497,23 @@ class CanvasComponent extends React.Component {
         }
     }
 
-   
+    //handled onclick events
+    dealButtonAction(){
+        this.dealCard();
+    }
+    flipCardAction(){
+        this.flipCard();
+    }
+
+    hitMeAction(){
+        this.hitMe();
+    }
+
+    gameOverAction(){
+        this.gameOver();
+    }
+
+   //click event
     hitMe(){
         if(GameStore.player_cards.length %2 === 0){
             var obj = GameStore.player_cards.map(item=>item.destination.x).sort((a,b)=>b-a);  
@@ -534,6 +554,7 @@ class CanvasComponent extends React.Component {
 
     }
 
+    //click event
     flipCard(){
         var item = GameStore.player_cards.find(i=> i.image.main_card === true);
         
@@ -554,6 +575,7 @@ class CanvasComponent extends React.Component {
         });
     }
 
+    //click event
     dealCard(){
         var obj = GameStore.randomCard();
         obj['main_card'] = true;
@@ -611,6 +633,8 @@ class CanvasComponent extends React.Component {
         
     }
 
+    //still learning mobx and observables.
+    //Mobx keeps history of state. Not sure how to deep refresh so reload page
     gameOver = () =>{
         // GameStore.clearData();
         // this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -619,6 +643,7 @@ class CanvasComponent extends React.Component {
         window.location.href = '/';
     }
     
+    //End game after 8 cards shown
     checkScore = () =>{
         if(GameStore.player_cards.length === 8){
             GameStore.gameStatus = "game_over";
@@ -628,6 +653,7 @@ class CanvasComponent extends React.Component {
         }
     }
 
+    //listener for click events
     addListeners = () =>{
 
         this.canvas.addEventListener('click', e=>{
